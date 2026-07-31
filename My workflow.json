@@ -1,0 +1,688 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "event": "=messageReceived",
+        "filters": {
+          "readStatus": "unread"
+        }
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -688,
+        -128
+      ],
+      "id": "e3def5b8-3831-4db9-a668-f4c16bcdb605",
+      "name": "Gmail Trigger",
+      "alwaysOutputData": false,
+      "notesInFlow": true,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "FuG1mPLDklNgIeFt",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "3ee7e17c-4a0e-4afe-ab7b-95c7e2fe8ee2",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -768,
+        224
+      ],
+      "id": "21349d16-d7a5-4c7d-8c20-ca1cb4529157",
+      "name": "Webhook",
+      "webhookId": "3ee7e17c-4a0e-4afe-ab7b-95c7e2fe8ee2",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "value": "oJRYpg6UpreMVWcq",
+          "mode": "list",
+          "cachedResultName": "sheet",
+          "cachedResultUrl": "/projects/KF86sajqICvt9VRB/datatables/oJRYpg6UpreMVWcq"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "subject": "={{ $('Get many messages').item.json.Subject }}",
+            "snippet": "={{ $('Get many messages').item.json.snippet }}",
+            "email": "={{ $('Get many messages').item.json.From.includes('<') ? $('Get many messages').item.json.From.split('<')[1].replace('>', '') : $('Get many messages').item.json.From }}\n",
+            "name": "={{ $('Get many messages').item.json.From.split(' <')[0] }}\n",
+            "status": "={{ JSON.parse($json.content.parts[0].text.replace(/```json\\n?|\\n?```/g, '').trim()).classification }}",
+            "reason": "={{ JSON.parse($json.content.parts[0].text.replace(/```json\\n?|\\n?```/g, '').trim()).reason }}",
+            "msg_id": "={{ $('Get many messages').item.json.id }}",
+            "thread_id": "={{ $('Get many messages').item.json.threadId }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "msg_id",
+              "displayName": "msg_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "thread_id",
+              "displayName": "thread_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "snippet",
+              "displayName": "snippet",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "subject",
+              "displayName": "subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "reason",
+              "displayName": "reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -32,
+        560
+      ],
+      "id": "a195d7fa-b6f1-4ea3-ad14-fdd758d6aa64",
+      "name": "Insert row"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-flash-latest",
+          "mode": "list",
+          "cachedResultName": "models/gemini-flash-latest"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are an email classification assistant. Analyze the incoming email parameters below and determine whether it is IMPORTANT or NOT_IMPORTANT. \n\nSTRICT OVERRIDE RULES (CHECK THESE FIRST):\n1. GIBBERISH / NOISE RULE: If the email contains random character mashings, obvious test strings, or nonsensical content, classify as NOT_IMPORTANT.\n2. FEASIBILITY & SANITY CHECK: If a meeting or event request contains impossible, nonsensical, or unrealistic timings (e.g., \"2pm night\", \"3 AM office meeting\", \"meet at 2 AM\"), treat it as spam/test data and classify as NOT_IMPORTANT—even if it uses words like \"urgent\" or \"meeting\".\n\nIMPORTANT emails include:\n- Legitimate client communications\n- Genuine business opportunities\n- Real meeting requests during standard working hours or with realistic schedules\n- Legitimate urgent messages\n- Payment or invoice updates\n- Project updates or technical work discussions\n\nNOT_IMPORTANT emails include:\n- Nonsense, unrealistic, or fake meeting requests\n- Gibberish, random text, or test messages\n- Promotions / Marketing emails / Newsletters\n- Spam or phishing attempts\n- Social notifications\n- Automated low-priority alerts\n\nReturn ONLY valid JSON in this exact format:\n{\n  \"classification\": \"IMPORTANT\" | \"NOT_IMPORTANT\",\n  \"reason\": \"Short explanation matching your conditions\"\n}\n\n---\nEMAIL DATA TO EVALUATE:\nFrom: {{ $json.From }}\nSubject: {{ $json.Subject }}\nSnippet: {{ $json.snippet }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        -160,
+        192
+      ],
+      "id": "04f4f203-895f-43e1-aadf-0d464e2f0fa1",
+      "name": "Message a model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "uyYBjAwTmmK4Tc0C",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "markAsRead",
+        "messageId": "={{ $json.msg_id }}"
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        448,
+        320
+      ],
+      "id": "41c57d15-980d-4bad-954b-ee3b45dbad3f",
+      "name": "Mark a message as read",
+      "webhookId": "9ec73b80-f04f-45ee-9498-878e04854387",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "FuG1mPLDklNgIeFt",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "6709ed64-e7bf-42fe-bdfe-6e1e14df5936",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "IMPORTANT",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        128,
+        496
+      ],
+      "id": "737a9134-6147-4809-b5c0-d59dc4723a71",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "messageId": "={{ $('Insert row').item.json.msg_id }}"
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        336,
+        512
+      ],
+      "id": "6cb5cc01-49b5-4023-be70-94b2421704ad",
+      "name": "Delete a message",
+      "webhookId": "ed94bfb3-35c9-4163-b1a0-f29f74baaf75",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "FuG1mPLDklNgIeFt",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\nconst body = $json.body?.message;\n\nif (!body) return [];\n\nconst pubSubId = body.message_id || body.messageId;\n\n// Drop duplicate Pub/Sub pings instantly\nif (staticData.lastPubSubId === pubSubId) {\n  return []; \n}\nstaticData.lastPubSubId = pubSubId;\n\nlet decodedData = {};\nif (body.data) {\n  try {\n    const jsonString = Buffer.from(body.data, 'base64').toString('utf-8');\n    decodedData = JSON.parse(jsonString);\n  } catch (err) {\n    decodedData = { raw: body.data };\n  }\n}\n\nreturn [{\n  json: {\n    pubSubMessageId: pubSubId,\n    emailAddress: decodedData.emailAddress,\n    historyId: decodedData.historyId,\n    publishTime: body.publishTime || body.publish_time\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -560,
+        176
+      ],
+      "id": "2035de98-7ddf-4c1e-885e-ccc651e76098",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "limit": 1,
+        "filters": {
+          "q": ""
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -368,
+        192
+      ],
+      "id": "5092dc62-104f-4729-93a0-e715b1e2894a",
+      "name": "Get many messages",
+      "webhookId": "f435030f-a7af-44a6-9cca-cde75fe11642",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "FuG1mPLDklNgIeFt",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "value": "oJRYpg6UpreMVWcq",
+          "mode": "list",
+          "cachedResultName": "sheet",
+          "cachedResultUrl": "/projects/KF86sajqICvt9VRB/datatables/oJRYpg6UpreMVWcq"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "subject": "={{ $('Gmail Trigger').item.json.Subject }}",
+            "snippet": "={{ $('Gmail Trigger').item.json.snippet }}",
+            "email": "={{ $('Gmail Trigger').item.json.From.includes('<') ? $('Gmail Trigger').item.json.From.split('<')[1].replace('>', '') : $('Gmail Trigger').item.json.From }}\n",
+            "name": "={{ $('Gmail Trigger').item.json.From.split(' <')[0] }}\n",
+            "status": "={{ JSON.parse($json.content.parts[0].text.replace(/```json\\n?|\\n?```/g, '').trim()).classification }}",
+            "reason": "={{ JSON.parse($json.content.parts[0].text.replace(/```json\\n?|\\n?```/g, '').trim()).reason }}",
+            "msg_id": "={{ $('Gmail Trigger').item.json.id }}",
+            "thread_id": "={{ $('Gmail Trigger').item.json.threadId }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "msg_id",
+              "displayName": "msg_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "thread_id",
+              "displayName": "thread_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "snippet",
+              "displayName": "snippet",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "subject",
+              "displayName": "subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "reason",
+              "displayName": "reason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -96,
+        -128
+      ],
+      "id": "5d7dc90d-5c88-48d3-98e4-02349026d8de",
+      "name": "Insert row2"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-3-flash-preview",
+          "mode": "list",
+          "cachedResultName": "models/gemini-3-flash-preview"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are an email classification assistant. Analyze the incoming email parameters below and determine whether it is IMPORTANT or NOT_IMPORTANT. \n\nSTRICT OVERRIDE RULES (CHECK THESE FIRST):\n1. GIBBERISH / NOISE RULE: If the email contains random character mashings, obvious test strings, or nonsensical content, classify as NOT_IMPORTANT.\n2. FEASIBILITY & SANITY CHECK: If a meeting or event request contains impossible, nonsensical, or unrealistic timings (e.g., \"2pm night\", \"3 AM office meeting\", \"meet at 2 AM\"), treat it as spam/test data and classify as NOT_IMPORTANT—even if it uses words like \"urgent\" or \"meeting\".\n\nIMPORTANT emails include:\n- Legitimate client communications\n- Genuine business opportunities\n- Real meeting requests during standard working hours or with realistic schedules\n- Legitimate urgent messages\n- Payment or invoice updates\n- Project updates or technical work discussions\n\nNOT_IMPORTANT emails include:\n- Nonsense, unrealistic, or fake meeting requests\n- Gibberish, random text, or test messages\n- Promotions / Marketing emails / Newsletters\n- Spam or phishing attempts\n- Social notifications\n- Automated low-priority alerts\n\nReturn ONLY valid JSON in this exact format:\n{\n  \"classification\": \"IMPORTANT\" | \"NOT_IMPORTANT\",\n  \"reason\": \"Short explanation matching your conditions\"\n}\n\n---\nEMAIL DATA TO EVALUATE:\nFrom: {{ $json.From }}\nSubject: {{ $json.Subject }}\nSnippet: {{ $json.snippet }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        -448,
+        -128
+      ],
+      "id": "c3669e9d-b5bf-41a7-844d-3814d0250cbe",
+      "name": "Message a model2",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "YVW9hakoWrwIvKel",
+          "name": "Google Gemini(PaLM) Api account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "markAsRead",
+        "messageId": "={{ $json.msg_id }}"
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        368,
+        -208
+      ],
+      "id": "81837641-4513-4ad1-8272-e82941636789",
+      "name": "Mark a message as read1",
+      "webhookId": "9ec73b80-f04f-45ee-9498-878e04854387",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "FuG1mPLDklNgIeFt",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "6709ed64-e7bf-42fe-bdfe-6e1e14df5936",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "IMPORTANT",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        112,
+        -112
+      ],
+      "id": "9a64a952-1648-47a2-b918-8c524cfe6465",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "messageId": "={{ $('Insert row2').item.json.msg_id }}"
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        368,
+        0
+      ],
+      "id": "eee83519-b097-45bd-996b-ad1ad427bc67",
+      "name": "Delete a message1",
+      "webhookId": "ed94bfb3-35c9-4163-b1a0-f29f74baaf75",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "FuG1mPLDklNgIeFt",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Message a model2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model1": {
+      "main": [
+        [
+          {
+            "node": "Insert row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert row": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Mark a message as read",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Delete a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark a message as read": {
+      "main": [
+        []
+      ]
+    },
+    "Delete a message": {
+      "main": [
+        []
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Get many messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many messages": {
+      "main": [
+        [
+          {
+            "node": "Message a model1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert row2": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model2": {
+      "main": [
+        [
+          {
+            "node": "Insert row2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Mark a message as read1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Delete a message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "39a8503c-7734-4ac0-985a-bb550fa9295a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "53b1def3c2532193b7482077f36849fcc7728bb862d9914698e3f74b90145f1e"
+  },
+  "nodeGroups": [],
+  "id": "qVBmpgiJE6d4BIrw",
+  "tags": []
+}
